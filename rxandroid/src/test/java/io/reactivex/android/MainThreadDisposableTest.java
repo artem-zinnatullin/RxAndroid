@@ -13,15 +13,17 @@
  */
 package io.reactivex.android;
 
-import io.reactivex.disposables.Disposable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import io.reactivex.disposables.Disposable;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
@@ -54,7 +56,7 @@ public final class MainThreadDisposableTest {
     assertTrue(latch.await(1, SECONDS));
   }
 
-  @Test public void onUnsubscribeRunsSyncOnMainThread() {
+  @Test public void onUnsubscribeDoesNotRunSyncOnMainThread() {
     ShadowLooper.pauseMainLooper();
 
     final AtomicBoolean called = new AtomicBoolean();
@@ -64,7 +66,7 @@ public final class MainThreadDisposableTest {
       }
     }.dispose();
 
-    assertTrue(called.get());
+    assertFalse(called.get());
   }
 
   @Test public void unsubscribeTwiceDoesNotRunTwice() {
@@ -100,6 +102,22 @@ public final class MainThreadDisposableTest {
     }).start();
 
     assertTrue(latch.await(1, SECONDS));
+    assertFalse(called.get()); // Callback has not yet run.
+
+    ShadowLooper.runMainLooperOneTask();
+    assertTrue(called.get());
+  }
+
+  @Test public void onUnsubscribeGoesThroughMainThreadSchedulerEvenOnMainThread() throws InterruptedException {
+    ShadowLooper.pauseMainLooper();
+
+    final AtomicBoolean called = new AtomicBoolean();
+    new MainThreadDisposable() {
+      @Override protected void onDispose() {
+        called.set(true);
+      }
+    }.dispose(); // Robolectric tests run on its main thread.
+
     assertFalse(called.get()); // Callback has not yet run.
 
     ShadowLooper.runMainLooperOneTask();

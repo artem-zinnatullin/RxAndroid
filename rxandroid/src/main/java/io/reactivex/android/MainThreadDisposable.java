@@ -14,9 +14,11 @@
 package io.reactivex.android;
 
 import android.os.Looper;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A {@linkplain Disposable disposable} which ensures its {@linkplain #onDispose()
@@ -69,15 +71,12 @@ public abstract class MainThreadDisposable implements Disposable {
     @Override
     public final void dispose() {
         if (unsubscribed.compareAndSet(false, true)) {
-            if (Looper.myLooper() == Looper.getMainLooper()) {
-                onDispose();
-            } else {
-                AndroidSchedulers.mainThread().scheduleDirect(new Runnable() {
-                    @Override public void run() {
-                        onDispose();
-                    }
-                });
-            }
+            AndroidSchedulers.mainThread().scheduleDirect(new Runnable() {
+                @Override
+                public void run() {
+                    onDispose();
+                }
+            });
         }
     }
 
